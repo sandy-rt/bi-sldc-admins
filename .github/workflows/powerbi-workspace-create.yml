@@ -1,0 +1,76 @@
+name: Create Fabric / Power BI Workspaces
+
+on:
+  workflow_dispatch:
+    inputs:
+      workspace_names:
+        description: 'Comma-separated base names e.g. Sales,Finance,HR,Marketing'
+        required: true
+        type: string
+
+      admin_emails:
+        description: 'Comma-separated list of admin email addresses to add to each workspace'
+        required: true
+        type: string
+        default: 'sandeep@tembare.com, john.doe@tembare.com'
+
+      create_dev:
+        description: 'Create DEV workspaces'
+        required: false
+        type: boolean
+        default: false
+
+      create_uat:
+        description: 'Create UAT workspaces'
+        required: false
+        type: boolean
+        default: false
+
+      create_prd:
+        description: 'Create PRD workspaces'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  create-workspaces:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install python-dotenv requests
+
+      - name: Create selected environments workspaces
+        env:
+          AZURE_TENANT_ID:     ${{ vars.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID:     ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          WORKSPACE_NAMES:     ${{ inputs.workspace_names }}
+          ADMIN_EMAILS:        ${{ inputs.admin_emails }}
+          FABRIC_CAPACITY_ID:  ${{ vars.FABRIC_CAPACITY_ID || '' }}
+          CREATE_DEV:          ${{ inputs.create_dev }}
+          CREATE_UAT:          ${{ inputs.create_uat }}
+          CREATE_PRD:          ${{ inputs.create_prd }}
+        run: python .github/scripts/powerbi-workspace-create.py
+
+      - name: Upload run summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace-creation-log
+          path: |
+            *.log
+          retention-days: 7
